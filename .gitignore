@@ -1,0 +1,28 @@
+# KiCad output files
+output/*.kicad_pcb
+output/*.kicad_sch
+output/*.kicad_pro
+
+# Agent working directories
+research/
+review/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Environment & secrets
+.env
+*.bak
+
+# Generated artifacts
+api_manifest.json
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,45 @@
+{
+  "agents": {
+    "api-researcher": {
+      "description": "Research-only agent for verifying KiCad API functions. Cannot write implementation code.",
+      "allowedTools": [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash",
+        "WebFetch",
+        "WebSearch"
+      ]
+    },
+    "design-reviewer": {
+      "description": "Aggressive bug finder that scores issues by severity. Outputs structured findings.",
+      "allowedTools": [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash",
+        "Write"
+      ]
+    },
+    "design-defender": {
+      "description": "Attempts to disprove bugs found by the reviewer. Scored inversely.",
+      "allowedTools": [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash",
+        "Write"
+      ]
+    },
+    "design-referee": {
+      "description": "Final judge between reviewer and defender. Produces verdict with action items.",
+      "allowedTools": [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash",
+        "Write"
+      ]
+    }
+  }
+}
