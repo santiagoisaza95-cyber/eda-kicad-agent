@@ -8,7 +8,9 @@ Rules for routing traces on a KiCad PCB. Based on IPC-2221, ST AN2867, and profe
 
 The KiCAD MCP Server's `route_trace` tool creates only single straight-line segments with no pathfinding, no obstacle avoidance, and no clearance checking. **Do NOT use MCP routing tools for trace routing.**
 
-Instead, use **direct pcbnew SWIG API** via Python scripts executed with the KiCad bundled Python interpreter (from `config.json`). Build traces with `PCB_TRACK`, vias with `PCB_VIA`, and zones with `ZONE` objects directly.
+Instead, use the **routing workbench CLI** (`scripts/routing_cli.py`) which provides an A* pathfinder, obstacle awareness, 45° angle enforcement, and immediate DRC feedback. See the "Routing Workbench" section below.
+
+**Do NOT write large Python routing scripts with raw pcbnew calls.** The workbench handles all trace/via/zone creation with proper validation. Route one net at a time using the CLI iteratively.
 
 You MAY still use MCP tools for: placement, DRC, export, library search, JLCPCB parts.
 
@@ -205,37 +207,17 @@ Quick rule: ~10 mils per amp for external 1oz copper, 10C temperature rise.
 
 ## Multi-Segment Routing (How to Route Around Obstacles)
 
-Each `PCB_TRACK` is a single straight segment. Real routes need multiple segments with 45-degree corners. Build them as a chain:
+**Use the routing workbench CLI** — do NOT write raw pcbnew routing scripts. The workbench handles multi-segment routing, 45° angle enforcement, and obstacle avoidance automatically:
 
-```python
-def route_path(board, points, width_mm, layer, net):
-    """Route a multi-segment trace through a list of (x_mm, y_mm) waypoints."""
-    for i in range(len(points) - 1):
-        track = pcbnew.PCB_TRACK(board)
-        track.SetStart(pcbnew.VECTOR2I(
-            pcbnew.FromMM(points[i][0]), pcbnew.FromMM(points[i][1])))
-        track.SetEnd(pcbnew.VECTOR2I(
-            pcbnew.FromMM(points[i+1][0]), pcbnew.FromMM(points[i+1][1])))
-        track.SetWidth(pcbnew.FromMM(width_mm))
-        track.SetLayer(layer)
-        track.SetNet(net)
-        board.Add(track)
+```bash
+# Step 1: Find an obstacle-avoiding path (A* pathfinder, 45° native)
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action find_path --start 15,10 --end 22,14 --width 0.25
+
+# Step 2: Route using the returned waypoints
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action route --net HSE_IN --waypoints "15,10;18.5,12.5;22,14" --width 0.25 --layer F.Cu
 ```
 
-### Waypoint Strategy for 45-Degree Routing
-To go from point A to point B that isn't on a straight line or 45-degree diagonal:
-1. Calculate the horizontal distance (dx) and vertical distance (dy)
-2. Route the shorter axis first at 45 degrees, then continue straight on the longer axis
-3. This creates an L-shaped route with a single 45-degree bend
-
-```
-A ──────┐        Not this (90°):    A ──────┐
-        \                                    │
-         \       Do this (45°):             B
-          B
-```
-
-For more complex routes (going around obstacles), add intermediate waypoints that maintain 45-degree segments.
+The `--action route` command validates all angles before placing traces. If you pass waypoints with a 90° bend, it returns an error immediately — you must fix the waypoints.
 
 ---
 
@@ -261,11 +243,9 @@ Isolated copper islands act as antennas — they radiate EMI and cause noise. Th
 5. Re-fill zones after adding stitching vias
 6. Repeat until zero islands remain
 
-In pcbnew, you can auto-remove tiny islands:
-```python
-zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
-# OR set minimum island area:
-zone.SetMinIslandArea(pcbnew.FromMM(1) * pcbnew.FromMM(1))  # remove islands < 1mm²
+The workbench `--action zone` command automatically sets island removal mode. After placing stitching vias, re-fill zones:
+```bash
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action fill_zones
 ```
 
 ### Rule 3: Ground Stitching Vias (Proactive)
@@ -279,16 +259,12 @@ Don't wait for islands to appear — proactively place GND stitching vias to int
 
 These vias are small (0.5mm pad, 0.25mm drill), carry no signal current, and their only job is to stitch the two ground layers together for low-impedance return paths and EMC performance.
 
-```python
-def add_stitching_via(board, x_mm, y_mm, gnd_net):
-    """Place a GND stitching via at the given position."""
-    via = pcbnew.PCB_VIA(board)
-    via.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x_mm), pcbnew.FromMM(y_mm)))
-    via.SetDrill(pcbnew.FromMM(0.25))
-    via.SetWidth(pcbnew.FromMM(0.5))
-    via.SetNet(gnd_net)
-    via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-    board.Add(via)
+Use the workbench CLI to place stitching vias:
+```bash
+# Place a GND stitching via at position (x, y)
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action via --net GND --pos 10,12
+
+# Repeat for each stitching via position around the perimeter, near ICs, and crystal guard ring
 ```
 
 ### Rule 4: Thermal Relief on Through-Hole Pads
@@ -325,40 +301,16 @@ WRONG:
 
 ## Zone Creation and Fill
 
-```python
-import pcbnew
+Use the workbench CLI to create zones and fill them:
+```bash
+# Create B.Cu GND zone (full board, priority 0)
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action zone --net GND --layer B.Cu --priority 0
 
-def create_ground_zone(board, layer, net_name, priority=0):
-    """Create a GND copper pour covering the entire board."""
-    zone = pcbnew.ZONE(board)
-    zone.SetNet(board.GetNetInfo().GetNetItem(net_name))
-    zone.SetLayer(layer)
-    zone.SetPriority(priority)
-
-    # Use board edge bounding box
-    bbox = board.GetBoardEdgesBoundingBox()
-    margin = pcbnew.FromMM(0.5)  # 0.5mm inset from edge
-
-    outline = zone.Outline()
-    outline.NewOutline()
-    outline.Append(bbox.GetLeft() + margin, bbox.GetTop() + margin)
-    outline.Append(bbox.GetRight() - margin, bbox.GetTop() + margin)
-    outline.Append(bbox.GetRight() - margin, bbox.GetBottom() - margin)
-    outline.Append(bbox.GetLeft() + margin, bbox.GetBottom() - margin)
-
-    # Remove small floating islands
-    zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
-
-    board.Add(zone)
-    return zone
-
-# Create zones: B.Cu GND first (priority 0), then F.Cu GND (priority 1)
-create_ground_zone(board, pcbnew.B_Cu, "GND", priority=0)
-create_ground_zone(board, pcbnew.F_Cu, "GND", priority=1)
+# Create F.Cu GND zone (fill remaining space, priority 1)
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action zone --net GND --layer F.Cu --priority 1
 
 # Fill all zones (do this LAST, after all traces are routed)
-filler = pcbnew.ZONE_FILLER(board)
-filler.Fill(board.Zones())
+"C:/Program Files/KiCad/9.0/bin/python.exe" scripts/routing_cli.py --board output/blue_pill.kicad_pcb --action fill_zones
 ```
 
 ---

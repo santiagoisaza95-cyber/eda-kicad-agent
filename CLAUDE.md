@@ -24,7 +24,7 @@ Read `config.json` for interpreter path, footprint library path, and KiCad versi
 ## KiCAD MCP Server
 This project integrates the [mixelpixx/KiCAD-MCP-Server](https://github.com/mixelpixx/KiCAD-MCP-Server) as an MCP tool provider. When the MCP is active, you have access to 60+ KiCad tools for project management, component placement, DRC, schematic design, JLCPCB parts search, and Gerber export.
 
-**MCP BYPASS FOR ROUTING:** Do NOT use MCP `route_trace`, `route_pad_to_pad`, or `route_differential_pair` tools. They create only single straight-line segments with no pathfinding or clearance checks. For all trace routing, via placement, and zone creation, use **direct pcbnew SWIG API** via Python scripts. See `routing-skill.md` for details.
+**MCP BYPASS FOR ROUTING:** Do NOT use MCP `route_trace`, `route_pad_to_pad`, or `route_differential_pair` tools. They create only single straight-line segments with no pathfinding or clearance checks. For all trace routing, via placement, and zone creation, use the **routing workbench CLI** (`scripts/routing_cli.py`). Do NOT write large Python routing scripts — use the CLI iteratively, one net at a time. See `routing-skill.md` for details.
 
 Use MCP for: placement, DRC, export, library search, JLCPCB | Bypass MCP for: routing, vias, zones
 
