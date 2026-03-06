@@ -1,0 +1,10 @@
+{
+  "kicad_version": "9.0.7",
+  "kicad_install_path": "C:\\Program Files\\KiCad\\9.0",
+  "kicad_cli_path": "C:\\Program Files\\KiCad\\9.0\\bin\\kicad-cli.exe",
+  "python_interpreter": "C:\\Program Files\\KiCad\\9.0\\bin\\python.exe",
+  "pcbnew_import_method": "bundled_python",
+  "footprint_library_path": "C:\\Program Files\\KiCad\\9.0\\share\\kicad\\footprints",
+  "symbol_library_path": "C:\\Program Files\\KiCad\\9.0\\share\\kicad\\symbols",
+  "threed_model_path": "C:\\Program Files\\KiCad\\9.0\\share\\kicad\\3dmodels"
+}

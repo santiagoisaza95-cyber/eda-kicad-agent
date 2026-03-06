@@ -194,7 +194,7 @@ class RouteActions:
         zone = self._pcbnew.ZONE(self._board)
         zone.SetNet(net)
         zone.SetLayer(layer)
-        zone.SetPriority(priority)
+        zone.SetAssignedPriority(priority)
 
         bbox = self._board.GetBoardEdgesBoundingBox()
         margin = self._pcbnew.FromMM(0.5)
@@ -207,6 +207,7 @@ class RouteActions:
         outline.Append(bbox.GetLeft() + margin, bbox.GetBottom() - margin)
 
         zone.SetIslandRemovalMode(self._pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+        zone.SetLocalClearance(self._pcbnew.FromMM(0.3))
         self._board.Add(zone)
 
         return {"status": "ok", "message": f"Zone {net_name} on {layer_name} (priority {priority})"}
