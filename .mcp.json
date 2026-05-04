@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "kicad-mcp": {
+      "command": "node",
+      "args": [
+        "C:/Users/santi/Desktop/Source/eda-kicad-agent/tools/KiCAD-MCP-Server/dist/index.js"
+      ],
+      "env": {
+        "PYTHONPATH": "C:\\Program Files\\KiCad\\9.0\\lib\\python3\\dist-packages",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}

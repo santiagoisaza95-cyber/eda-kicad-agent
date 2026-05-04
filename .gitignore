@@ -2,6 +2,12 @@
 output/*.kicad_pcb
 output/*.kicad_sch
 output/*.kicad_pro
+*.kicad_prl
+output/fp-info-cache
+output/drc_*.json
+
+# Vendored external MCP server (clone separately from mixelpixx/KiCAD-MCP-Server)
+tools/
 
 # Agent working directories
 research/
