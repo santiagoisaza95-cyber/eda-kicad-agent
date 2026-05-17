@@ -8,6 +8,7 @@ Run: .venv\\Scripts\\python scripts\\verify_toolchain.py
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -39,6 +40,38 @@ def warn_msg(label: str, detail: str = "") -> bool:
     suffix = f" — {detail}" if detail else ""
     print(f"  {YELLOW}[WARN]{RESET} {label}{suffix}")
     return True  # warnings don't block
+
+
+def skip_msg(label: str, detail: str = "") -> bool:
+    suffix = f" — {detail}" if detail else ""
+    print(f"  {YELLOW}[SKIPPED]{RESET} {label}{suffix}")
+    return True  # skips don't block
+
+
+def _kipython_path_from_config() -> Path | None:
+    """Return the configured kipython interpreter path, or None if unavailable."""
+    config_file = PROJECT_ROOT / "config.json"
+    if not config_file.exists():
+        return None
+    try:
+        cfg = json.loads(config_file.read_text())
+    except json.JSONDecodeError:
+        return None
+    interp = cfg.get("python_interpreter", "")
+    if not interp:
+        return None
+    return Path(interp)
+
+
+def _running_under_kipython() -> bool:
+    """True iff sys.executable matches the KiCad-bundled python from config.json."""
+    kipython = _kipython_path_from_config()
+    if kipython is None:
+        return False
+    try:
+        return Path(sys.executable).resolve() == kipython.resolve()
+    except OSError:
+        return False
 
 
 def check_python_version() -> bool:
@@ -101,7 +134,17 @@ def check_kicad_cli() -> bool:
 
 
 def check_pcbnew_import() -> bool:
-    """pcbnew must be importable (directly or via kigadgets)."""
+    """pcbnew must be importable (directly or via kigadgets).
+
+    When run from a non-kipython interpreter (e.g. the project venv), kigadgets
+    cannot load `_pcbnew` and this check is informational only — we SKIP it
+    rather than fail. To exercise pcbnew end-to-end, re-run this script under
+    the KiCad-bundled python (kipython). When run UNDER kipython, an import
+    failure is a real failure.
+    """
+    under_kipython = _running_under_kipython()
+    kipython = _kipython_path_from_config()
+
     try:
         import pcbnew  # type: ignore
         version = getattr(pcbnew, "Version", lambda: "unknown")()
@@ -119,9 +162,20 @@ def check_pcbnew_import() -> bool:
     except Exception:
         pass
 
+    if not under_kipython:
+        hint = (
+            f'run "{kipython}" scripts/verify_toolchain.py for full pcbnew verification'
+            if kipython is not None
+            else "run kipython scripts/verify_toolchain.py for full pcbnew verification"
+        )
+        return skip_msg(
+            "pcbnew import",
+            f"not running under kipython ({sys.executable}) — {hint}",
+        )
+
     return fail_msg(
         "pcbnew import",
-        "FAILED. Install KiCad 9.x, then run: python -m kigadgets"
+        "FAILED under kipython. Install KiCad 9.x, then run: python -m kigadgets"
     )
 
 
@@ -158,6 +212,80 @@ def check_footprint_library() -> bool:
     if pretty_dirs:
         return pass_msg("Footprint library", f"{len(pretty_dirs)} .pretty dirs at {fp_path}")
     return fail_msg("Footprint library", f"no .pretty directories found in {fp_path}")
+
+
+def check_lxml() -> bool:
+    """lxml must be importable (used by render pipeline for SVG manipulation)."""
+    try:
+        import lxml  # type: ignore
+        from lxml import etree  # type: ignore  # noqa: F401
+        return pass_msg("lxml", f"version {lxml.__version__}")
+    except ImportError:
+        return fail_msg("lxml", "NOT FOUND. Run: pip install lxml>=5.0.0")
+
+
+def _ensure_cairo_on_path_for_check() -> None:
+    """Mirror render_board's PATH bootstrap so the cairosvg check matches runtime."""
+    if sys.platform != "win32":
+        return
+    for p in os.environ.get("PATH", "").split(os.pathsep):
+        if not p:
+            continue
+        if (Path(p) / "libcairo-2.dll").exists() or (Path(p) / "cairo-2.dll").exists():
+            return
+    candidates: list[Path] = []
+    config_file = PROJECT_ROOT / "config.json"
+    if config_file.exists():
+        try:
+            cfg = json.loads(config_file.read_text())
+            kicad_install = cfg.get("kicad_install_path", "")
+            if kicad_install:
+                candidates.append(Path(kicad_install) / "bin")
+        except json.JSONDecodeError:
+            pass
+    candidates.append(Path(r"C:\Program Files\KiCad\9.0\bin"))
+    candidates.append(Path(r"C:\Program Files\GTK3-Runtime Win64\bin"))
+    for cand in candidates:
+        if cand.exists() and ((cand / "cairo-2.dll").exists() or (cand / "libcairo-2.dll").exists()):
+            os.environ["PATH"] = str(cand) + os.pathsep + os.environ.get("PATH", "")
+            return
+
+
+def check_cairosvg() -> bool:
+    """cairosvg must be importable AND able to find a cairo DLL at runtime."""
+    _ensure_cairo_on_path_for_check()
+    try:
+        import cairosvg  # type: ignore
+        return pass_msg("cairosvg", f"version {cairosvg.__version__}")
+    except ImportError:
+        return fail_msg("cairosvg", "NOT FOUND. Run: pip install cairosvg>=2.7.0")
+    except OSError as exc:
+        return fail_msg(
+            "cairosvg",
+            f"DLL load failed: {exc}. Install GTK3: choco install gtk3-runtime-bin-x64"
+        )
+
+
+def check_gtk3_runtime() -> bool:
+    """On Windows, verify a libcairo-2.dll / cairo-2.dll is findable for cairosvg.
+
+    Accepts the KiCad-bundled cairo-2.dll as a fallback (we patch PATH at runtime
+    in render_board.py and verify_toolchain.py so cairocffi can locate it).
+    """
+    if sys.platform != "win32":
+        return pass_msg("GTK3 runtime", "non-Windows — skipped")
+    _ensure_cairo_on_path_for_check()
+    for p in os.environ.get("PATH", "").split(os.pathsep):
+        if not p:
+            continue
+        for dll in ("libcairo-2.dll", "cairo-2.dll"):
+            candidate = Path(p) / dll
+            if candidate.exists():
+                return pass_msg("GTK3 runtime", f"{dll} at {p}")
+    return fail_msg(
+        "GTK3 runtime",
+        "no cairo DLL found. Run: choco install gtk3-runtime-bin-x64"
+    )
 
 
 def check_api_manifest() -> bool:
@@ -203,11 +331,17 @@ def main() -> None:
     print(f"Python:       {sys.executable}")
     print()
 
+    # Note: render-pipeline checks (lxml/cairosvg/GTK3) run BEFORE pcbnew so that
+    # a failed kigadgets bootstrap can't pollute sys.path with KiCad's bundled
+    # PIL (which lacks _imaging in some installs and breaks cairosvg's import).
     checks = [
         ("Python Version", check_python_version),
         ("KiCad CLI", check_kicad_cli),
-        ("pcbnew Import", check_pcbnew_import),
         ("pytest", check_pytest),
+        ("lxml", check_lxml),
+        ("cairosvg", check_cairosvg),
+        ("GTK3 Runtime", check_gtk3_runtime),
+        ("pcbnew Import", check_pcbnew_import),
         ("Footprint Library", check_footprint_library),
         ("API Manifest", check_api_manifest),
     ]

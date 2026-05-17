@@ -1,5 +1,7 @@
 # CLAUDE.md — Agent Router
 
+TELEMETRY: EXEMPT — Agent system, not a backend+frontend split. Observability is via in-session journal (`output/<board>_journal.md`), per-checkpoint PNG renders, and `AskUserQuestion` at the 3 audition milestones. No WebSocket+JSONL telemetry layer required. (Classified by project-architect Phase 4, 2026-05-16.)
+
 ## GATE 0: MCP Server Check (MANDATORY)
 Before doing ANY work, run this command:
 ```
