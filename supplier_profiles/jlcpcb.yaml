@@ -1,0 +1,141 @@
+# JLCPCB 2-layer FR4 capability profile.
+# Source: research/supplier_drc_research.md "JLCPCB 2-Layer FR4 — Authoritative
+# Rules Table". Values are verbatim from that table; comments preserve the
+# research-doc context (cost-tier hints, community-doc ambiguity notes, etc.).
+#
+# To validate this file against the schema:
+#     python -c "from scripts.supplier_drc import load_supplier_profile; \
+#                load_supplier_profile('jlcpcb')"
+
+version: "1.0"
+
+metadata:
+  name: "JLCPCB"
+  capability_tier: "standard-2layer-fr4"
+  last_updated: "2026-05-16"
+  source_url: "https://jlcpcb.com/capabilities/pcb-capabilities"
+
+design_rules:
+
+  trace_rules:
+    min_trace_width:
+      value: 0.127
+      unit: mm
+      mil_equiv: 5
+      recommended: 0.15
+      comment: "5 mil floor; 0.15 mm recommended for margin."
+    min_trace_spacing:
+      value: 0.127
+      unit: mm
+      mil_equiv: 5
+      comment: "Same as min trace width."
+    copper_to_edge:
+      value: 0.3
+      unit: mm
+      comment: "Safety margin from milled edge."
+
+  via_rules:
+    min_via_drill:
+      value: 0.3
+      unit: mm
+      mil_equiv: 12
+      cost_grade: standard
+      comment: "Premium tier offers 0.2 mm at +cost."
+    min_via_pad_diameter:
+      value: 0.6
+      unit: mm
+      mil_equiv: 24
+      comment: "Standard 2-layer pad."
+    min_annular_ring:
+      value: 0.15
+      unit: mm
+      recommended: 0.2
+      comment: "Docs ambiguous; community uses 0.2-0.25 mm."
+    via_to_via_clearance:
+      value: 0.254
+      unit: mm
+      mil_equiv: 10
+      comment: "Edge-to-edge."
+    plated_hole_range:
+      min: 0.15
+      max: 6.35
+      unit: mm
+      increment: 0.05
+      tolerance: 0.08
+      comment: "+/- 0.08 mm tolerance, 0.05 mm increments."
+    non_plated_hole_min:
+      value: 0.5
+      unit: mm
+      comment: "Fiducials, mounting holes. External script check only."
+
+  pad_rules:
+    min_pad_to_pad:
+      value: 0.127
+      unit: mm
+      mil_equiv: 5
+      comment: "All layer pairs."
+    min_smd_clearance:
+      value: 0.1
+      unit: mm
+
+  solder_mask_rules:
+    min_mask_clearance:
+      value: 0.05
+      unit: mm
+      direction: per_side
+      comment: "Native KiCad UI setting; not DRU-expressible. 0.1 mm safer."
+    min_mask_web:
+      value: 0.1
+      unit: mm
+      comment: "Minimum bridge between adjacent mask openings."
+
+  silkscreen_rules:
+    min_line_width:
+      value: 0.15
+      unit: mm
+      mil_equiv: 6
+      comment: "Quality degrades below this."
+    min_text_height:
+      value: 1.0
+      unit: mm
+      comment: "Legibility floor."
+    clearance_from_pad:
+      value: 0.1
+      unit: mm
+      comment: "Silk-on-pad is MEDIUM risk; enforce via DRU."
+
+  board_rules:
+    thickness:
+      standard: 1.6
+      range: [0.4, 2.0]
+      unit: mm
+    copper_weight:
+      standard: 1
+      options: [1, 2]
+      unit: oz
+    size_min:
+      x: 5
+      y: 5
+      unit: mm
+    size_max:
+      x: 400
+      y: 500
+      unit: mm
+    surface_finish:
+      standard: "HASL (lead-free)"
+      options:
+        - "HASL"
+        - "HASL (lead-free)"
+        - "ENIG"
+        - "OSP"
+
+cost_premiums:
+  trace_below_3mil:
+    condition: "trace_width < 0.0762mm"
+    cost_impact: "+++"
+  via_below_12mil:
+    condition: "via_drill < 0.3mm"
+    cost_impact: "+++"
+  enig_finish:
+    condition: "surface_finish == ENIG"
+    cost_impact: "++"
