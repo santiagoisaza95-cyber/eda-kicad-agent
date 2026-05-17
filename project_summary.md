@@ -178,6 +178,118 @@ Verifications all pass: verify_mcp.py exit 0, verify_toolchain.py exit 0 (9/9), 
 
 **CTO action:** dispatch commit worker — granular commits per batch (1.1, 1.2, 1.3, 1.4, cross-batch fix). Local only, NO push. Then re-dispatch Stage Integration Auditor (Cycle 2).
 
+**Commit worker complete (commit-worker-s1):** 5 commits made locally (no push):
+- 6c31e13 docs(architect): v2 architecture proposal + stage contracts
+- 537c30e feat(render): Batch 1.1 — render pipeline foundation
+- 849202c feat(supplier-drc): Batch 1.2 — supplier DRC profile system
+- 7026a9f feat(audition): Batch 1.3 — 555 LED blinker audition contract
+- ef4c905 chore(baselines): Batch 1.4 — demote 4.6 artifacts + Stage 1 project summary
+
+Cross-batch path fix folded into Commit 2 (test_render_board.py was already edited in working tree before any commit). Final `git status` clean except `output/` (intentional — ephemeral DRC + render artifacts). Branch ahead of origin/master by 5 commits. No `--no-verify`, no `--amend`, no `Co-Authored-By`. No push.
+
+**Finding (side-note, not blocker):** `research/` is gitignored, so the 3 research files supporting Stage 1 are not in the committed repo. They exist locally and will continue to do so. If/when needed by future Stage 2/3 workers, they'll be referenced from local disk.
+
+**Stage Integration Auditor re-dispatched (Cycle 2).**
+
+**Stage Integration Audit verdict (Cycle 2): GREEN.** Stage 1 closed. All 10 Stage Integration Criteria pass:
+- All 4 batch checklists fulfilled (1.1 GREEN, 1.2 GREEN, 1.3 GREEN, 1.4 GREEN)
+- Full test suite: 134 tests collect, 9 pass (render+drc), 22 blinker_555 collect cleanly
+- render_board.py produces PNGs against baselines/4.6/blue_pill.kicad_pcb
+- supplier_drc emits parseable JLCPCB DRU (1589 bytes)
+- verify_mcp + verify_toolchain both exit 0
+- 5 commits on top of v1 HEAD (ee9c46f); working tree clean of Stage 1 deliverables (`output/` ephemeral untracked + project_summary.md scribe trail intentional)
+- docs/context/ has exactly 5 files (baselines, contracts, render-pipeline, routing-primitives, supplier-drc)
+- project_summary.md append-only preserved
+- R100 renames preserve blame history for the 4.6 demotion
+- No `Co-Authored-By`, no `--amend`, no `--no-verify`
+
+**Stage 1 CLOSED. Team rotation to Stage 2 authorized.** Stage 2 is fresh-team per `cto/fresh-team-per-stage.md` — workers from Stage 1 will not carry context forward. Continuity is via contracts + rules + project_summary only.
+
+### Session — 2026-05-16 (Stage 2 Iterative Build Architecture execution)
+
+**Stage 2 kickoff.** Owner authorized via "Continue to Stage 2 with a fresh team". 4 batches sequential (2.1 → 2.2 → 2.3 → 2.4). Same worker for 2.1+2.2 per contract orchestration sketch (coherent skill-content authorship). Separate worker for 2.3 (CLAUDE.md + /review-board). 2.4 = integration dry-run on stub contract.
+
+**Batch 2.1 worker dispatched: 3 new skill files + 3 structural tests.**
+
+**Batch 2.1 worker complete (worker-b2.1):**
+- 6 files created (~904 LOC total): visual-review-skill.md (158), iterative-refinement-skill.md (212), self-critique-skill.md (167), test_visual_review_skill.py (116), test_iterative_refinement_skill.py (120), test_self_critique_skill.py (131)
+- All 3 skills have required sections; 10-entry failure-mode catalog verbatim from research; 5 anti-patterns named (rubber-stamping, thrashing, over-correction, early escalation, local optimum trap); loop convergence numbers match research (3 iter, ~12K tokens, 0.85 proceed, <0.5 escalate)
+- `pytest tests/test_{visual_review,iterative_refinement,self_critique}_skill.py -v` → 27/27 PASS (0.13s)
+- No regression: existing 9 tests still PASS (4 render + 5 supplier_drc); verify_mcp.py + verify_toolchain.py exit 0
+- Worker self-asserts all Batch 2.1 Completion Criteria PASS; LOC slightly under target on 2 skills (content density is high; contract checks invariants not LOC)
+
+**Batch 2.1 auditor dispatched.**
+
+**Auditor verdict (Batch 2.1):** GREEN — first-cycle pass. All 9 Completion Criteria pass. 27 structural tests + 9 Stage 1 regression all pass. Research traceability verified: 10 failure modes + 5 anti-patterns + loop numbers all verbatim from research/self_critique_patterns_research.md. Cross-references between skills present. Routing CLI shorthands all 5 named. project_summary append-only preserved. Advisory note: LOC counting variance (worker counted 158/212/167 non-blank; auditor counted 214/271/208 total) — contract checks content invariants not LOC, both methods agree files exceed minimum content requirements. **Batch 2.1 closed.**
+
+**Batch 2.2 worker dispatched: pcb-design-skill rewrite + journal protocol + inline reviewer gates.**
+
+**Batch 2.2 worker complete (worker-b2.2):**
+- `agent_docs/skills/pcb-design-skill.md` rewritten: 127 LOC v1 monolithic 12-step → 448 LOC v2 8-checkpoint iterative. 18 H2 sections (8 required present), 57 "checkpoint" mentions, 19 routing_cli refs, 18 AskUserQuestion refs, 9 design-reviewer refs, 29 journal refs, 6 visual-review xrefs, 10 iterative-refinement xrefs, 5 self-critique xrefs, 4 supplier-drc xrefs
+- `docs/context/agent-skills.context.md` NEW (110 LOC, 6 H2 sections) — the 6th and final .context.md file. Orients 7 skills (4 v1 + 3 new), routing relationships, load order, dependency graph (pcb-design as orchestrator)
+- `docs/context/` now has exactly 6 files (agent-skills, baselines, contracts, render-pipeline, routing-primitives, supplier-drc)
+- Tests: 27/27 Batch 2.1 PASS, 9/9 Stage 1 regression PASS, 61 passed + 100 skipped in full suite (skips are pre-existing kipython-dependent)
+- verify_mcp + verify_toolchain exit 0
+- Worker self-asserts all Batch 2.2 Completion Criteria PASS
+
+**Batch 2.2 auditor dispatched.**
+
+**Auditor verdict (Batch 2.2):** GREEN — first-cycle pass. All 11 Completion Criteria pass. pcb-design-skill rewrite: 425 insertions / 104 deletions vs v1; 8 required H2 sections present + 7 supporting; all 8 checkpoints named (32 mentions); inline reviewer gates explicit at CP4 line 145 + CP6 line 172; AskUserQuestion milestones at CP4/5/7 boundaries with full payload spec; Reflexion journal structure with append-only + re-read protocol; DRC enforcement section with per-CP expectations table. agent-skills.context.md (110 LOC, 6 H2 sections): all 7 skills named (23 refs), load order + dependency graph documented. docs/context/ = 6 files exactly. 27/27 Batch 2.1 + 9/9 Stage 1 regression all PASS. verify_mcp + verify_toolchain exit 0. v1 surviving skills (placement, routing, kicad-api) unmodified. MCP routing reaffirmed banned; routing_cli.py invoked 15+ times across CP6/CP7/CP8. project_summary append-only preserved. **Batch 2.2 closed.**
+
+**Batch 2.3 worker dispatched: CLAUDE.md routing update + /review-board repurpose.**
+
+**Batch 2.3 worker complete (worker-b2.3):**
+- `CLAUDE.md` updated (+10 lines, 0 removed): 4 new Task Routing rows (visual-review, iterative-refinement, self-critique, supplier-drc) + 2 new gates (Gate 1 Visual-loop, Gate 2 Supplier-DRC). All existing content preserved.
+- `.claude/commands/review-board.md` rewritten (10 → 53 lines): v2 role clarified (optional final adversarial pass, NOT for in-build), Preconditions section (HARD REFUSE if `output/<board>.kicad_pcb` / `output/<board>_full.png` / `output/<board>_journal.md` missing), Workflow updated with precondition verification step, Outputs table (review/defense/verdict), 3 design-* subagents preserved unchanged.
+- All grep verifications pass (CLAUDE.md has 6 skill/rule refs, 2 gates present; review-board.md has 8 audition refs + 4 final refs + 6 design-reviewer refs + 4 PRECONDITION refs)
+- Pytest: 27/27 + 9/9 + 61 passed full suite (no regressions)
+- verify_mcp + verify_toolchain exit 0
+- Worker noted naming variance: used contract's required strings ("Visual-loop gate"/"Supplier-DRC gate") per worker/contract-compliance.md
+- 3 design-* subagents NOT modified; other commands (new-board, research-api) NOT modified
+- Worker self-asserts all Batch 2.3 Completion Criteria PASS
+
+**Batch 2.3 auditor dispatched.**
+
+**Auditor verdict (Batch 2.3):** GREEN — first-cycle pass. All 8 Completion Criteria pass. CLAUDE.md: 4 new Task Routing rows + 2 new gates (Visual-loop, Supplier-DRC); all existing content preserved (TELEMETRY: EXEMPT, GATE 0, First Rule, MCP BANNED-routing, Contract Enforcement, No External References, API Safety). /review-board.md rewritten (10 → 53 lines): post-audition role clarified, Preconditions with HARD REFUSE (PCB + PNG + journal). 3 design-* subagents preserved unchanged. Other slash commands unchanged. 27/27 + 9/9 + 61 passed full suite, no regressions. verify_mcp + verify_toolchain exit 0. project_summary append-only preserved. **Batch 2.3 closed.**
+
+**Batch 2.4 worker dispatched: integration dry-run on stub contract.**
+
+**Batch 2.4 worker complete (worker-b2.4):**
+- `contracts/_dryrun_stub.md` (129 LOC) — verification-only stub (5 components, 3 nets, "DESIGN FROM CONTRACT ONLY", supplier: jlcpcb). Underscore prefix marks as non-production.
+- `docs/auditions/_stage2_dryrun_log.md` (576 LOC) — static trace through pcb-design-skill on the stub. Documents what WOULD happen at each of 8 checkpoints without actual execution.
+- All 5 integration points PASS: (a) journal append unconditional at step 11 of per-checkpoint loop, (b) inline reviewer wired at CP4+CP6 only, (c) AskUserQuestion at 3 milestones with 6-field payload, (d) skill load order matches CLAUDE.md routing → pcb-design-skill → others on-demand, (e) supplier DRU emission gates routing per Gate 2 + skill precondition + supplier-drc-rules sequencing
+- pytest: 27 + 9 + 61 passed, no regressions; verify_mcp + verify_toolchain exit 0
+- Worker interpretation: spawn prompt explicitly mandated verification-only ("DO NOT actually execute pcb-design-skill"), so runtime artifacts (output/_dryrun_journal.md, .kicad_dru, review/*.md) are N/A — example shapes documented in trace. Wiring verified static.
+- ZERO wiring defects found. v2 8-checkpoint loop is ready for Stage 3 audition execution.
+
+**Batch 2.4 auditor dispatched.**
+
+**Auditor verdict (Batch 2.4):** GREEN — first-cycle pass. All 9 Completion Criteria pass under verification-mode-only interpretation. Auditor sustained that reading with 3 independent contract citations: (1) preamble points to stage doc as operational authority, (2) Task 2.4.2 line 730 "WITHOUT actually committing real component placements", (3) Stage 2 produce-scope is "operational loop ready for Stage 3 audition execution" (not execution itself). All 5 integration points (a-e) independently verified by reading actual skill files — journal append unconditional at pcb-design-skill.md:97; design-reviewer at CP4 line 145 + CP6 line 172 nowhere else; AskUserQuestion milestones at CP4/5/7 with 6-field payload; Required Reading order matches CLAUDE.md routing; supplier DRU emission gated by Gate 2 + precondition 4 + supplier-drc-rules step 5. 27/27 + 9/9 + 61 passed full suite, no regressions. **Batch 2.4 closed.**
+
+**All 4 Stage 2 batches GREEN.** Pre-emptively dispatching commit worker before Stage 2 Integration Audit (Stage 1's integration RED'd on commit hygiene — doing commits first saves a cycle).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
