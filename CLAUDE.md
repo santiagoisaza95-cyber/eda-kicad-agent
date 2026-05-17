@@ -20,6 +20,12 @@ After every compaction event, STOP. Re-read your current task plan and the relev
 ## Before ANY Coding
 Read `agent_docs/rules/coding-rules.md` first. No exceptions.
 
+## Gate 1: Visual-loop gate (v2)
+Before placing or routing, ensure `scripts/render_board.py` is callable and produces a PNG against your in-progress board. Per checkpoint of the 8-checkpoint iterative loop, render → invoke `agent_docs/skills/visual-review-skill.md` → iterate. Max 3 rework iterations per checkpoint (per `agent_docs/skills/self-critique-skill.md` and `agent_docs/skills/iterative-refinement-skill.md`). NO monolithic builds.
+
+## Gate 2: Supplier-DRC gate (v2)
+Before routing starts, if the contract has `supplier:` metadata, you MUST load a supplier profile (default `jlcpcb`) via `scripts/supplier_drc/loader.py::load_supplier_profile()` and emit the DRU file via `emit_kicad_dru()`. KiCad DRC must use the emitted `.kicad_dru`. Routing tasks are BLOCKED until this is done. See `agent_docs/rules/supplier-drc-rules.md`.
+
 ## Machine Config
 Read `config.json` for interpreter path, footprint library path, and KiCad version. Never hardcode machine-specific paths.
 
@@ -42,6 +48,10 @@ Setup: `python scripts/setup_mcp.py` | Verify: `python scripts/verify_mcp.py`
 | Working with KiCad API         | `agent_docs/skills/kicad-api-skill.md`      |
 | Routing traces                 | `agent_docs/skills/routing-skill.md`        |
 | Routing traces interactively      | `scripts/routing_cli.py` (see routing-skill.md) |
+| Doing visual review of a checkpoint render | `agent_docs/skills/visual-review-skill.md` |
+| Refining iteratively (rework loop) | `agent_docs/skills/iterative-refinement-skill.md` |
+| Self-critiquing your own work | `agent_docs/skills/self-critique-skill.md` |
+| Picking + emitting supplier DRC rules | `agent_docs/rules/supplier-drc-rules.md` |
 | Running DRC                    | `agent_docs/rules/drc-rules.md`             |
 | Writing tests                  | `agent_docs/rules/testing-rules.md`         |
 | Tests are failing              | `agent_docs/rules/test-failing-rules.md`    |
